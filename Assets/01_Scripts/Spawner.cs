@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Spawner : MonoBehaviour
 {
@@ -9,17 +10,46 @@ public class Spawner : MonoBehaviour
     public Transform leftpoint;
     public Transform rightpoint;
     public List<GameObject> EnemyPrefab;
-    // Start is called before the first frame update
-    void Start()
+    public GameObject Boss;
+
+    public Text killedEnemiesText;
+    public Text phaseText;
+    public int phase = 1;
+    public int killerdEnemies = 0; 
+    public static Spawner instance;
+
+    // Configuraciones para modificar la dificultad
+    public float timeBtwSpawnReduction = 0.5f;
+    public float minTimeBtwSpawn = 0.5f; 
+
+    private bool bossSpawned = false; 
+
+    void Awake()
     {
-        
+        if (instance == null)
+        {
+            instance = this;
+        }
     }
 
-    // Update is called once per frame
+    void Start()
+    {
+        killedEnemiesText.text = "Score: " + killerdEnemies;
+        phaseText.text = "Oleada: " + phase++;
+    }
+
     void Update()
     {
-        SpawnEnemy();
+        if (phase < 4)
+        {
+            SpawnEnemy();
+        }
+        else  
+        {
+            SpawnBossWithChance();
+        }
     }
+
     void SpawnEnemy()
     {
         if (timer < timeBtwSpawn)
@@ -29,10 +59,54 @@ public class Spawner : MonoBehaviour
         else
         {
             timer = 0;
-            float x=Random.Range(leftpoint.position.x, rightpoint.position.x);
-            int enemy=Random.Range(0,EnemyPrefab.Count);
-            Vector3 newpost=new Vector3(x,transform.position.y,0);
-            Instantiate(EnemyPrefab[enemy], newpost, Quaternion.Euler(0, 0, 180));
+            float x = Random.Range(leftpoint.position.x, rightpoint.position.x);
+            int enemy = Random.Range(0, EnemyPrefab.Count);
+            Vector3 newpost = new Vector3(x, transform.position.y, 0);
+            Instantiate(EnemyPrefab[enemy], newpost, Quaternion.Euler(0, 0, 180)).tag = "Enemy";
+        }
+    }
+
+    void SpawnBossWithChance()
+    {
+        if (bossSpawned) return;
+
+        float x = Random.Range(leftpoint.position.x, rightpoint.position.x);
+        Vector3 newpostBoss = new Vector3(x, transform.position.y, 0);
+        Instantiate(Boss, newpostBoss, Quaternion.Euler(0, 0, 180)).tag = "Boss";
+
+        bossSpawned = true; 
+    }
+
+    public void AddKilledEnemy(int points)
+    {
+        killerdEnemies += points;
+        killedEnemiesText.text = "Score: " + killerdEnemies;
+
+        if (killerdEnemies == 10) 
+        {
+            phaseText.text = "Oleada: " + phase++;
+            killerdEnemies = 0;
+            RemoveAllEnemies();
+            ResetSpawner();
+            killedEnemiesText.text = "Score: " + killerdEnemies;
+        }
+    }
+
+    void RemoveAllEnemies()
+    {
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach (GameObject enemy in enemies)
+        {
+            Destroy(enemy);
+        }
+    }
+
+    void ResetSpawner()
+    {
+        timer = 0;
+        if (timeBtwSpawn > minTimeBtwSpawn)
+        {
+            timeBtwSpawn -= timeBtwSpawnReduction;
         }
     }
 }

@@ -32,5 +32,12 @@ public class Bullet : MonoBehaviour //herencia para usar todos los metodos el Mo
             p.TakeDamage(damage);
             Destroy(gameObject);
         }
+        else if (collision.gameObject.CompareTag("Boss") && playerBullet)
+        {
+            Boss p = collision.gameObject.GetComponent<Boss>();
+            p.TakeDamage(damage);
+            Destroy(gameObject);
+        }
+
     }
 }

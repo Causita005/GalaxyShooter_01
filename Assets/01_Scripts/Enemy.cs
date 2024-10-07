@@ -1,36 +1,40 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI; //para la interfaz de canvas para que funcione
 
 public class Enemy : MonoBehaviour
 {
     public EnemyType type;
-    public float life = 3;
-    public float speed = 2;
+    float life = 3; //
+    public float maxlife = 3; //agregado de la vida total del enemigo
+    public float speed = 0.5f;
     public float timeBtwShoot = 1.5f;
     float timer = 0;
     public float range = 4;
     public float damage = 1f;
+    public float powerup = 1;
     bool targetInRange = false;
     Transform target;
     public Transform firePoint;
     public Bullet bulletPrefab;
     public float bulletspeed = 5f;
-    public ParticleSystem explosionEffectPrefab;
+    public List<GameObject> powerUpPrefabs;
+
+    public GameObject deathParticlesPrefab;
+
+
+    public Image lifeBar;
+
+    public int scorePoints = 1;
 
     void Start()
     {
-        Player playerComponent = FindObjectOfType<Player>();
-        if (playerComponent != null)
-        {
-            target = playerComponent.transform;
-        }
-        else
-        {
-            Debug.LogError("Player component not found!");
-        }
+        GameObject ship = GameObject.FindGameObjectWithTag("Player");
+        target = ship.transform;
+        life=maxlife;
+        lifeBar.fillAmount = life / maxlife;
     }
-
 
     // Update is called once per frame
     void Update()
@@ -68,18 +72,44 @@ public class Enemy : MonoBehaviour
                     SearchTarget();
                 }
                 break;
-            default:
-                break;
         }
     }
     public void TakeDamage(float damage)
     {
         life-=damage;
+        lifeBar.fillAmount = life / maxlife;
         if (life <= 0)
         {
-            Destroy(gameObject);
+            
+            float chance = Random.Range(0f, 100f);
+
+            // 50% de probabilidad de spawnear un PowerUp
+            if (chance <= 50f )
+            {
+                // Selecciona un PowerUp aleatorio de la lista
+                int randomIndex = Random.Range(0, powerUpPrefabs.Count);
+                Instantiate(powerUpPrefabs[randomIndex], transform.position, Quaternion.identity);
+            }
+            Spawner.instance.AddKilledEnemy(scorePoints);
+
+            Die();
         }
     }
+    void Die()
+    {
+        GameObject deathParticles = Instantiate(deathParticlesPrefab, transform.position, Quaternion.identity);
+        ParticleSystem ps = deathParticles.GetComponent<ParticleSystem>();
+
+        if (ps != null)
+        {
+            ps.Play();  
+        }
+
+        Destroy(gameObject);
+        Destroy(deathParticles, ps.main.duration);
+    }
+
+
     void MoveForward()
     {
         transform.Translate(Vector2.up * speed * Time.deltaTime);
@@ -96,16 +126,11 @@ public class Enemy : MonoBehaviour
     }
     void SearchTarget()
     {
-        if (target == null)
-        {
-            targetInRange = false; // Si no hay objetivo, definitivamente no está en rango.
-            return; // Salimos de la función porque no hay más qué hacer aquí.
-        }
-
-        float distance = Vector2.Distance(transform.position, target.position);
+        //if (target == null) return; Rotate
+        float distance=Vector2.Distance(transform.position,target.position);
         if (distance <= range)
         {
-            targetInRange = true;
+            targetInRange=true;
         }
         else
         {
@@ -129,29 +154,16 @@ public class Enemy : MonoBehaviour
     private void OnCollisionEnter2D(Collision2D collision)
     {
           if (collision.gameObject.CompareTag("Player"))
-          {
+        {
             Player p = collision.gameObject.GetComponent<Player>();
             p.TakeDamage(damage);
-            TriggerExplosion();
             Destroy(gameObject);
-      
-          }else if (collision.gameObject.CompareTag("Floor"))
-          {
-            life = 0;
-            TriggerExplosion();
-            Destroy(gameObject);
-          }
-    }
-    void TriggerExplosion()
-    {
-        if (explosionEffectPrefab != null)
+        }
+        if (collision.gameObject.CompareTag("Finish"))
         {
-            ParticleSystem explosionEffect = Instantiate(explosionEffectPrefab, transform.position, Quaternion.identity);
-            explosionEffect.Play();
-            Destroy(explosionEffect.gameObject, explosionEffect.main.duration);
+            Die();
         }
     }
-
     public enum EnemyType
     {
         Normal,

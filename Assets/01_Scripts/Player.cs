@@ -1,34 +1,60 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.UI;    //PARA MANEJAR LOS DISTINTOS COMPONENTES
+using UnityEngine.SceneManagement; //RECARGA DE LA ESCENA
 
 public class Player : MonoBehaviour
 {
-    //random.range(0,2);
-    public float damage = 1f; 
-    public float speed = 2f;
+    public float damage = 1f;
+    public float speed = 4f;
     public float bulletspeed = 5f;
     public Transform firePoint;
     public Bullet bulletPrefab;
     public Rigidbody2D rb;
     float cargadores = 0;
-    public float timeBtwShoot = 0.2f;
+    public float timeBtwShoot = 0.5f;
     float timer = 0;
-    public float life = 3;
-    // Start is called before the first frame update
+    float life = 5;
+
+    public float criticalChance = 0f;
+    public bool shield = false;
+    public float shieldTime = 5f;
+
+    public Text lifetext;
+    public Image lifebar; 
+    public float maxLife = 5;
+
+    bool isDead = false;
+    float deathTimer = 0f; 
+    float deathDelay = 2f;
+
     void Start()
     {
         Debug.Log("Inicio del juego");
+        lifetext.text = "Life = " + life;
+        lifebar.fillAmount = life / maxLife;
+        life = maxLife;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        Debug.Log("Juego en proceso");
-        Movement();
-        Shoot();
-        Reload();
+        if (!isDead)
+        {
+            Shoot();
+            Reload();
+            Movement();
+        }
+        else
+        {
+            deathTimer += Time.deltaTime;
+            if (deathTimer >= deathDelay)
+            {
+                SceneManager.LoadScene("Game");
+            }
+        }
     }
     void Movement()
     {
@@ -38,49 +64,88 @@ public class Player : MonoBehaviour
     }
     void Shoot()
     {
-            timer += Time.deltaTime;
-            if (Input.GetKeyDown(KeyCode.Space) && timer >= timeBtwShoot && cargadores < 5)
+        timer += Time.deltaTime;
+        if (Input.GetKeyDown(KeyCode.Space) && timer >= timeBtwShoot && cargadores < 5)
+        {
+            Bullet b = Instantiate(bulletPrefab, firePoint.position, transform.rotation);
+            if (UnityEngine.Random.Range(0f, 1f) <= criticalChance)
             {
-                Bullet b=Instantiate(bulletPrefab, firePoint.position, transform.rotation);
+                b.damage = damage * 2;
+            }
+            else
+            {
                 b.damage = damage;
-                b.speed = bulletspeed;
-                timer = 0; 
-                cargadores++;
-            } 
+            }
+            b.speed = bulletspeed;
+            timer = 0;
+            cargadores++;
+        }
     }
     void Reload()
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
             cargadores = 0;
-        }   
+        }
     }
-    public void TakeDamage(float damage)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        life -= damage;
-        if (life <= 0)
+        if (collision.gameObject.CompareTag("Boss"))
         {
+            SceneManager.LoadScene("Game");
             Destroy(gameObject);
         }
     }
-    public void DamageEx(float damageEx)
+        public void TakeDamage(float damage)
     {
-        damage = damageEx;
-        Shoot();
+        life -= damage;
+        
+        if (!shield)
+        {
+            life -= damage;
+            lifetext.text = "Life = " + life;
+            lifebar.fillAmount = life / maxLife;
+            Debug.Log("Daño recibido: " + damage + ". Vida restante: " + life);
+            if (life <= 0)
+            {
+                
+                // SceneManager.LoadScene("Game");
+                isDead = true;
+            }
+        }
     }
-    public void VelocityEx(float Velocity)
+    public void ApplyPowerUp(PowerUpType powerUp, float amount)
     {
-        speed = Velocity;
-        Movement();
+        switch (powerUp)
+        {
+            case PowerUpType.Damage:
+                damage += amount;
+                break;
+            case PowerUpType.MoveSpeed:
+                speed += amount;
+                break;
+            case PowerUpType.BulletSpeed:
+                bulletspeed += amount;
+                break;
+            case PowerUpType.CriticalRate:
+                criticalChance = amount;//0.3f
+                break;
+            case PowerUpType.FireRate:
+                timeBtwShoot -= amount;
+                if (timeBtwShoot <= 0)
+                {
+                    timeBtwShoot = 0.1f;
+                }
+                break;
+            case PowerUpType.Shield:
+                StartCoroutine(ApplyShield());
+                break;
+        }
     }
-    public void VelocityPro(float Velocityp)
+    IEnumerator ApplyShield()
     {
-        bulletspeed = Velocityp;
-        Shoot();
+        shield = true;
+        yield return new WaitForSeconds(shieldTime);
+        shield = false;
     }
-    public void CriticalD(float DamageC)
-    {
-        DamageC = damage;
-        Shoot();
-    }  
 }
